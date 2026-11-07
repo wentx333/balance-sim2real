@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  experiments:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # 06_render 需要 OpenGL 上下文，CI 上不稳定，单独手动跑。
+      - name: 01 balance / disturbance rejection
+        run: python experiments/01_balance.py
+
+      - name: 02 velocity tracking
+        run: python experiments/02_track.py
+
+      - name: 03 delay x torque sweep
+        run: python experiments/03_sweep.py
+
+      - name: 04 motor system identification
+        run: python experiments/04_sysid_motor.py
+
+      - name: 05 sim2real alignment (selftest)
+        run: python experiments/05_sim2real.py --selftest
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-py${{ matrix.python-version }}
+          path: results/*.png

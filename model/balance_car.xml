@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<!--
+  双轮平衡车 / 轮式倒立摆
+  几何与质量参数刻意做成 [PARAM] 可标定项，方便用真机数据反解：
+    - 轮半径 R = 0.050 m
+    - 轮距 2*0.085 = 0.170 m
+    - 整备质量 ~1.95 kg
+  坐标约定：+x 前进，+y 左，+z 上（MuJoCo 右手系）
+-->
+<mujoco model="balance_car">
+  <compiler angle="radian" autolimits="true"/>
+  <option timestep="0.001" integrator="implicitfast" cone="elliptic" impratio="10" gravity="0 0 -9.81"/>
+
+  <visual>
+    <global offwidth="1280" offheight="720"/>
+    <quality shadowsize="2048"/>
+  </visual>
+
+  <default>
+    <default class="wheel">
+      <geom type="cylinder" size="0.05 0.022" euler="1.5708 0 0"
+            material="rubber" condim="4" friction="1.0 0.02 0.0005"
+            mass="0.25" priority="1"/>
+      <joint type="hinge" axis="0 1 0" armature="0.002" damping="0.002"/>
+    </default>
+  </default>
+
+  <asset>
+    <material name="rubber" rgba="0.14 0.14 0.16 1"/>
+    <material name="body"   rgba="0.90 0.55 0.13 1"/>
+    <material name="al"     rgba="0.72 0.74 0.78 1"/>
+    <material name="imu"    rgba="0.90 0.15 0.15 1"/>
+    <!-- 地面棋盘格：纯视觉，让 GIF 里能一眼看出车在动、动了多远 -->
+    <texture name="sky" type="skybox" builtin="gradient" width="256" height="1536"
+             rgb1="0.30 0.42 0.58" rgb2="0.93 0.95 0.98"/>
+    <texture name="grid" type="2d" builtin="checker" width="128" height="128"
+             rgb1="0.66 0.68 0.71" rgb2="0.58 0.60 0.63"/>
+    <material name="grid" texture="grid" texrepeat="24 24" texuniform="true"/>
+  </asset>
+
+  <worldbody>
+    <light name="key" pos="1.2 -1.5 2.6" dir="-0.4 0.5 -1" diffuse="0.85 0.85 0.85" specular="0.2 0.2 0.2"/>
+    <light name="fill" pos="-1.5 1.2 2.0" dir="0.5 -0.4 -1" diffuse="0.35 0.35 0.40"/>
+    <geom name="floor" type="plane" size="6 6 0.05" material="grid"
+          friction="1.0 0.02 0.0005" condim="3"/>
+
+    <body name="chassis" pos="0 0 0.115">
+      <freejoint name="root"/>
+      <geom name="torso" type="box" size="0.085 0.055 0.075" pos="0 0 0.075"
+            mass="1.10" material="body" condim="3"/>
+      <geom name="mast" type="capsule" fromto="0 0 0.145 0 0 0.300" size="0.012"
+            mass="0.14" material="al" condim="3"/>
+      <site name="imu" pos="0 0 0.165" size="0.012" rgba="0.9 0.15 0.15 1"/>
+
+      <body name="wheel_l" pos="0 0.085 -0.065">
+        <joint name="wheel_l" class="wheel"/>
+        <geom name="wheel_l" class="wheel"/>
+        <!-- 轮毂只做视觉，不参与碰撞；让轮子和车身在渲染里分得开 -->
+        <geom name="hub_l" type="cylinder" size="0.019 0.023" euler="1.5708 0 0"
+              material="al" mass="0.002" contype="0" conaffinity="0"/>
+      </body>
+      <body name="wheel_r" pos="0 -0.085 -0.065">
+        <joint name="wheel_r" class="wheel"/>
+        <geom name="wheel_r" class="wheel"/>
+        <geom name="hub_r" type="cylinder" size="0.019 0.023" euler="1.5708 0 0"
+              material="al" mass="0.002" contype="0" conaffinity="0"/>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <motor name="tau_l" joint="wheel_l" ctrlrange="-2.0 2.0" gear="1"/>
+    <motor name="tau_r" joint="wheel_r" ctrlrange="-2.0 2.0" gear="1"/>
+  </actuator>
+
+  <sensor>
+    <framequat name="root_quat" objtype="xbody" objname="chassis"/>
+    <gyro name="imu_gyro" site="imu"/>
+  </sensor>
+</mujoco>
